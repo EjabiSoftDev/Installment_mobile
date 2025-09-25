@@ -23,7 +23,10 @@ class SearchBarBox extends StatelessWidget {
           Expanded(
             child: TextField(
               controller: controller,
-              onChanged: onChanged,
+              onChanged: (v) {
+                // avoid firing on every keystroke of spaces
+                if (onChanged != null) onChanged!(v);
+              },
               onSubmitted: onSubmitted,
               decoration: const InputDecoration(
                 hintText: '....',

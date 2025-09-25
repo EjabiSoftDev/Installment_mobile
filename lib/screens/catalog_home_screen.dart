@@ -49,11 +49,10 @@ class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
     _future = _load();                 // filtered products
     _brandsFuture = _loadAllBrands();  // full, unfiltered brand list
     _groupsFuture = _api.fetchMainGroups();
-    _searchCtrl.addListener(_onSearchChanged);
   }
 
   Future<List<Product>> _load() => _api.fetchProducts(
-        search: _searchCtrl.text,
+        search: _searchCtrl.text.trim(),
         minPrice: _minPrice,
         maxPrice: _maxPrice,
         brandId: _selectedBrandId,
@@ -85,7 +84,7 @@ class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
 
   void _onSearchChanged() {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 350), () {
+    _debounce = Timer(const Duration(milliseconds: 200), () {
       if (!mounted) return;
       _applyFilters();
     });
@@ -240,10 +239,10 @@ class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
                   children: [
                     Header(hello: hello, subHello: subHello),
                     const SizedBox(height: 24),
-                    // Submit (keyboard search) triggers the API fetch
+                    // Search works alongside brand/section/price/sort filters
                     SearchBarBox(
                       controller: _searchCtrl,
-                      onChanged: (_) => _onSearchChanged(),
+                      onChanged: (_) => _applyFilters(), // realtime
                       onSubmitted: (_) => _applyFilters(),
                       onSearchTap: _applyFilters,
                     ),
@@ -363,7 +362,7 @@ class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
                     // Sections tab: categories row
                     if (!_showBrands) ...[
                       TitleRow(title: categories),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 40),
                       FutureBuilder<List<GroupName>>(
                         future: _groupsFuture,
                         builder: (context, snap) {
@@ -372,9 +371,9 @@ class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
                           }
                           final items = snap.data ?? [];
                           if (items.isEmpty) return const SizedBox.shrink();
-                          return SizedBox(
-                            height: 20,
-                            child: ListView.separated(
+                           return SizedBox(
+                             height: 36,
+                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
                               itemCount: items.length,
                               separatorBuilder: (_, __) => const SizedBox(width: 8),
@@ -383,10 +382,19 @@ class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
                                 final String id = g.id.toString();
                                 final String label = isAr ? g.nameAr : g.nameEn;
                                 final bool selected = _mainGroupId == id;
-                                return ChoiceChip(
-                                  label: Text(label),
-                                  selected: selected,
-                                  onSelected: (_) {
+                                 return ChoiceChip(
+                                   label: Padding(
+                                     padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                     child: Text(
+                                       label,
+                                       softWrap: false,
+                                       overflow: TextOverflow.visible,
+                                     ),
+                                   ),
+                                   selected: selected,
+                                   labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+                                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                   onSelected: (_) {
                                     setState(() {
                                       if (_mainGroupId == id) {
                                         _mainGroupId = null; // toggle off
@@ -453,7 +461,13 @@ class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
     );
   }
 }
+//  // status= 1 registered and need to complete kyc but there is no previous data
+    //  2 kyc done (fill the data and be able to apply kyc again )
+    //  3 appvoved fill only 
+    //  4 only dialog
+    //  5 look at the AdminNote and fill the data and Kyc again 
 
+    
 /// Groups products by MainGroup and renders a horizontal scroller per section.
 /// If you prefer grouping by SubGroup or Brand, switch the key below.
 class DynamicSections extends StatelessWidget {
@@ -569,11 +583,13 @@ class _BrandCard extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 4),
-            Center(
+            const SizedBox(height: 6),
+            SizedBox(
+              width: double.infinity,
               child: Text(
                 label,
-                maxLines: 1,
+                softWrap: true,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: TextStyle(
