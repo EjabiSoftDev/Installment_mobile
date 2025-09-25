@@ -216,7 +216,8 @@ class ApiClient {
     required String phone,
     required String otp,
   }) async {
-    final url = Uri.parse('$baseUrl/api/otp/verify'); // adjust endpoint if needed
+    final url =
+        Uri.parse('$baseUrl/api/otp/verify'); // adjust endpoint if needed
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -238,72 +239,6 @@ class ApiClient {
     }
   }
 
-  Future<RegisterResponse> loginCustomer({
-    required String phone,
-    required String password,
-    required int languageId,
-  }) async {
-    final body = {
-      'Phone': phone,
-      'Password': password,
-      'LanguageId': languageId,
-    };
-
-    http.Response res;
-    try {
-      res = await _http
-          .post(
-            _uri('/api/Customers/login'),
-            headers: const {'Content-Type': 'application/json'},
-            body: jsonEncode(body),
-          )
-          .timeout(const Duration(seconds: 20));
-    } on Exception catch (e) {
-      throw ApiException('Network error: ${e.toString()}');
-    }
-
-    if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw ApiException('HTTP ${res.statusCode}: ${res.reasonPhrase ?? ''}');
-    }
-
-    try {
-      final json = jsonDecode(res.body) as Map<String, dynamic>;
-      return RegisterResponse.fromJson(json);
-    } on Object catch (e) {
-      throw ApiException('Invalid response: ${e.toString()}');
-    }
-  }
-
-  Future<bool> resendOtp({required String phone}) async {
-    final body = {
-      'Phone': phone,
-    };
-
-    http.Response res;
-    try {
-      res = await _http
-          .post(
-            _uri('/api/Customers/resend-otp'),
-            headers: const {'Content-Type': 'application/json'},
-            body: jsonEncode(body),
-          )
-          .timeout(const Duration(seconds: 20));
-    } on Exception catch (e) {
-      throw ApiException('Network error: ${e.toString()}');
-    }
-
-    if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw ApiException('HTTP ${res.statusCode}: ${res.reasonPhrase ?? ''}');
-    }
-
-    try {
-      final json = jsonDecode(res.body) as Map<String, dynamic>;
-      return json['success'] == true;
-    } on Object catch (e) {
-      throw ApiException('Invalid response: ${e.toString()}');
-    }
-  }
-
   // -------------------- Products --------------------
 
   /// Same signature/behavior as the previous ProductsApi.fetchProducts.
@@ -311,13 +246,13 @@ class ApiClient {
   /// `/api/Products?search=Sam&minPrice=&maxPrice=3500&brandId=&mainGroupId=1&subGroupId=1&sortBy=&sortOrder=`
   Future<List<Product>> fetchProducts({
     String search = 'Sam',
-    String? minPrice,           // empty when null
+    String? minPrice, // empty when null
     String? maxPrice = '3500',
-    String? brandId,            // empty when null
+    String? brandId, // empty when null
     String? mainGroupId = '1',
     String? subGroupId = '1',
-    String? sortBy,             // empty when null
-    String? sortOrder,          // empty when null
+    String? sortBy, // empty when null
+    String? sortOrder, // empty when null
   }) async {
     http.Response res;
     try {
@@ -332,12 +267,10 @@ class ApiClient {
         'sortOrder': sortOrder,
       });
 
-      res = await _http
-          .get(
-            uri,
-            headers: const {'Accept': 'application/json'},
-          )
-          .timeout(const Duration(seconds: 20));
+      res = await _http.get(
+        uri,
+        headers: const {'Accept': 'application/json'},
+      ).timeout(const Duration(seconds: 20));
     } on Exception catch (e) {
       throw ApiException('Network error: ${e.toString()}');
     }
@@ -353,7 +286,9 @@ class ApiClient {
       }
       final List data = decoded['data'] ?? [];
       // map to Product model
-      return data.map<Product>((e) => Product.fromJson(e as Map<String, dynamic>)).toList();
+      return data
+          .map<Product>((e) => Product.fromJson(e as Map<String, dynamic>))
+          .toList();
     } on ApiException {
       rethrow;
     } on Object catch (e) {
@@ -383,9 +318,9 @@ class ApiClient {
       'sortOrder': sortOrder,
     });
 
-    final res = await _http
-        .get(uri, headers: const {'Accept': 'application/json'})
-        .timeout(const Duration(seconds: 20));
+    final res = await _http.get(uri, headers: const {
+      'Accept': 'application/json'
+    }).timeout(const Duration(seconds: 20));
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw ApiException('HTTP ${res.statusCode}: ${res.reasonPhrase ?? ''}');
@@ -397,5 +332,104 @@ class ApiClient {
     }
     final List data = decoded['data'] ?? [];
     return data.cast<Map<String, dynamic>>();
+  }
+
+  Future<LoginResponse> loginCustomer({
+    required String phone,
+    required String password,
+    required int languageId,
+  }) async {
+    final body = {
+      'Phone': phone,
+      'Password': password,
+      'LanguageId': languageId,
+    };
+    http.Response res;
+    try {
+      res = await _http
+          .post(
+            _uri('/api/Customers/login'),
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 20));
+    } on Exception catch (e) {
+      throw ApiException('Network error: ${e.toString()}');
+    }
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw ApiException('HTTP ${res.statusCode}: ${res.reasonPhrase ?? ''}');
+    }
+
+    try {
+      final json = jsonDecode(res.body) as Map<String, dynamic>;
+      return LoginResponse.fromJson(json);
+    } on Object catch (e) {
+      throw ApiException('Invalid response: ${e.toString()}');
+    }
+  }
+
+  Future<LoginResponse> verifyOtp({
+    required String phone,
+    required String otp,
+  }) async {
+    final body = {
+      'Phone': phone,
+      'Otp': otp,
+    };
+    http.Response res;
+    try {
+      res = await _http
+          .post(
+            _uri('/api/Customers/verify-otp'),
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 20));
+    } on Exception catch (e) {
+      throw ApiException('Network error: ${e.toString()}');
+    }
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw ApiException('HTTP ${res.statusCode}: ${res.reasonPhrase ?? ''}');
+    }
+
+    try {
+      final json = jsonDecode(res.body) as Map<String, dynamic>;
+      return LoginResponse.fromJson(json);
+    } on Object catch (e) {
+      throw ApiException('Invalid response: ${e.toString()}');
+    }
+  }
+
+  Future<RegisterResponse> resendOtp({
+    required String phone,
+  }) async {
+    final body = {
+      'Phone': phone,
+    };
+    http.Response res;
+    try {
+      res = await _http
+          .post(
+            _uri('/api/Customers/resend-otp'),
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 20));
+    } on Exception catch (e) {
+      throw ApiException('Network error: ${e.toString()}');
+    }
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw ApiException('HTTP ${res.statusCode}: ${res.reasonPhrase ?? ''}');
+    }
+
+    try {
+      final json = jsonDecode(res.body) as Map<String, dynamic>;
+      return RegisterResponse.fromJson(json);
+    } on Object catch (e) {
+      throw ApiException('Invalid response: ${e.toString()}');
+    }
   }
 }
