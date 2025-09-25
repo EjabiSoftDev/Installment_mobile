@@ -37,6 +37,7 @@ class _OtpRequestScreenState extends State<OtpRequestScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => OtpVerifyScreen(
+          isArabic: widget.isArabic,
           name: name,
           phone: fullPhone,
         ),
@@ -155,7 +156,7 @@ class _OtpRequestScreenState extends State<OtpRequestScreen> {
                         onPressed: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) => const InitialRegisterScreen(),
+                              builder: (_) => const RegistrationScreen(),
                             ),
                           );
                         },

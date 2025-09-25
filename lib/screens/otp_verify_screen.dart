@@ -103,7 +103,8 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
   Future<void> _resendOtp() async {
     if (_secondsLeft > 0) return;
     try {
-      final success = await ApiClient.instance.resendOtp(phone: widget.phone);
+      final success = await ApiClient.instance
+          .sendOtp(phone: widget.phone, name: widget.name);
       if (!mounted) return;
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(

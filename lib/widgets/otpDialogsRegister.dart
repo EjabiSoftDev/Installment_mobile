@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../api/api_client.dart';
-import '../screens/registration_screen.dart';
+import '../screens/catalog_home_screen.dart';
 
 class OtpDialog extends StatefulWidget {
   final String phone;
@@ -46,7 +46,7 @@ Future<void> _verify() async {
       Navigator.of(context).pop(); 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => const CatalogHomeScreen(),
+          builder: (_) => CatalogHomeScreen(isArabic: true, userName: widget.name),
         ),
       );
     }
