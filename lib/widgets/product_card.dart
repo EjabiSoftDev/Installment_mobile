@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../data/models/product.dart';
-import '../../data/network/products_api.dart';
+import '../models/product.dart';
+import '../api/api_client.dart';
 
 class ProductCard extends StatelessWidget {
   final String title;
@@ -47,7 +47,9 @@ class ProductCard extends StatelessWidget {
 
     final totalText = isArabic ? 'المجموع ${fmt(total)}' : 'Total ${fmt(total)}';
 
-    final img = p.imageUrls.isNotEmpty ? ProductsApi.toAbsoluteOrNull(p.imageUrls.first) : null;
+    final img = p.imageUrls.isNotEmpty
+        ? ApiClient.instance.toAbsolute(p.imageUrls.first)
+        : null;
 
     return ProductCard(
       title: title,

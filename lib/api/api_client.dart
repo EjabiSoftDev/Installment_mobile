@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'api_exception.dart';
 import 'register_response.dart';
 // TODO: point this to your actual Product model file
-import '../data/models/product.dart'; // <-- adjust the path if needed
+import '../models/product.dart';
 
 class ApiClient {
   static final ApiClient instance = ApiClient._internal();

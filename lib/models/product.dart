@@ -1,7 +1,7 @@
 
 
-import 'brand.dart';
-import 'group_name.dart';
+import 'brand.DART';
+import 'GroupName.dart';
 
 class Product {
   final int id;
