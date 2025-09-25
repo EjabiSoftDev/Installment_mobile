@@ -4,14 +4,15 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../widgets/otpDialogsRegister.dart';
 
-class InitialRegisterScreen extends StatefulWidget {
-  const InitialRegisterScreen({super.key});
+class SimpleRegisterScreen extends StatefulWidget {
+  final bool isArabic;
+  const SimpleRegisterScreen({super.key, this.isArabic = false});
 
   @override
-  State<InitialRegisterScreen> createState() => _InitialRegisterScreen();
+  State<SimpleRegisterScreen> createState() => _SimpleRegisterScreen();
 }
 
-class _InitialRegisterScreen extends State<InitialRegisterScreen> {
+class _SimpleRegisterScreen extends State<SimpleRegisterScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
