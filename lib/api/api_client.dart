@@ -238,6 +238,72 @@ class ApiClient {
     }
   }
 
+  Future<RegisterResponse> loginCustomer({
+    required String phone,
+    required String password,
+    required int languageId,
+  }) async {
+    final body = {
+      'Phone': phone,
+      'Password': password,
+      'LanguageId': languageId,
+    };
+
+    http.Response res;
+    try {
+      res = await _http
+          .post(
+            _uri('/api/Customers/login'),
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 20));
+    } on Exception catch (e) {
+      throw ApiException('Network error: ${e.toString()}');
+    }
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw ApiException('HTTP ${res.statusCode}: ${res.reasonPhrase ?? ''}');
+    }
+
+    try {
+      final json = jsonDecode(res.body) as Map<String, dynamic>;
+      return RegisterResponse.fromJson(json);
+    } on Object catch (e) {
+      throw ApiException('Invalid response: ${e.toString()}');
+    }
+  }
+
+  Future<bool> resendOtp({required String phone}) async {
+    final body = {
+      'Phone': phone,
+    };
+
+    http.Response res;
+    try {
+      res = await _http
+          .post(
+            _uri('/api/Customers/resend-otp'),
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 20));
+    } on Exception catch (e) {
+      throw ApiException('Network error: ${e.toString()}');
+    }
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw ApiException('HTTP ${res.statusCode}: ${res.reasonPhrase ?? ''}');
+    }
+
+    try {
+      final json = jsonDecode(res.body) as Map<String, dynamic>;
+      return json['success'] == true;
+    } on Object catch (e) {
+      throw ApiException('Invalid response: ${e.toString()}');
+    }
+  }
+
   // -------------------- Products --------------------
 
   /// Same signature/behavior as the previous ProductsApi.fetchProducts.
