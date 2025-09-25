@@ -11,8 +11,8 @@ import '../models/product.dart';
 
 class CatalogHomeScreen extends StatefulWidget {
   final bool isArabic;
-  final String userName;
-  const CatalogHomeScreen({super.key, this.isArabic = true, this.userName = 'خالد'});
+  final String userName=user;
+  const CatalogHomeScreen({super.key});
 
   @override
   State<CatalogHomeScreen> createState() => _CatalogHomeScreenState();

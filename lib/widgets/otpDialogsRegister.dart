@@ -46,7 +46,7 @@ Future<void> _verify() async {
       Navigator.of(context).pop(); 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => const RegistrationScreen(),
+          builder: (_) => const CatalogHomeScreen(),
         ),
       );
     }

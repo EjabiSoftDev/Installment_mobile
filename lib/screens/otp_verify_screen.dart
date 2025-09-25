@@ -39,7 +39,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => CatalogHomeScreen(userName: widget.name),
+        builder: (_) => CatalogHomeScreen(),
       ),
     );
   }
