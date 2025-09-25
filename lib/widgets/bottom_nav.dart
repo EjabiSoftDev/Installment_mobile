@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../screens/registration_screen.dart';
 
 class BottomNav extends StatelessWidget {
   final bool isArabic;
@@ -18,11 +19,21 @@ class BottomNav extends StatelessWidget {
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: const [
-          _BottomItem(icon: Icons.home, label: 'الرئيسية', selected: true),
-          _BottomItem(icon: Icons.assignment, label: 'طلباتي'),
-          _BottomItem(icon: Icons.credit_card, label: 'أقساطي'),
-          _BottomItem(icon: Icons.person, label: 'حسابي'),
+        children: [
+          const _BottomItem(icon: Icons.home, label: 'الرئيسية', selected: true),
+          const _BottomItem(icon: Icons.assignment, label: 'طلباتي'),
+          const _BottomItem(icon: Icons.credit_card, label: 'أقساطي'),
+          _BottomItem(
+            icon: Icons.person,
+            label: i4,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => RegistrationScreen(isArabic: isArabic),
+                ),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -33,18 +44,20 @@ class _BottomItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool selected;
-  const _BottomItem({required this.icon, required this.label, this.selected = false});
+  final VoidCallback? onTap;
+  const _BottomItem({required this.icon, required this.label, this.selected = false, this.onTap});
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final content = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, color: selected ? const Color(0xFF0B82FF) : Colors.grey),
         const SizedBox(height: 4),
         Text(label,
-            style:
-                TextStyle(color: selected ? const Color(0xFF0B82FF) : Colors.grey, fontSize: 12)),
+            style: TextStyle(color: selected ? const Color(0xFF0B82FF) : Colors.grey, fontSize: 12)),
       ],
     );
+    if (onTap == null) return content;
+    return InkWell(onTap: onTap, borderRadius: BorderRadius.circular(20), child: Padding(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4), child: content));
   }
 }

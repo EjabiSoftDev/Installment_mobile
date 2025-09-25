@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'otp_request_screen.dart';
+import 'LoginScreen.dart';
 
 class LanguageSelectionScreen extends StatelessWidget {
   const LanguageSelectionScreen({super.key});
@@ -7,7 +7,7 @@ class LanguageSelectionScreen extends StatelessWidget {
   void _goToNext(BuildContext context, String lang) {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => OtpRequestScreen(isArabic: lang == 'ar'),
+        builder: (_) => LoginScreen(isArabic: lang == 'ar'),
       ),
     );
   }

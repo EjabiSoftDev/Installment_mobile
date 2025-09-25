@@ -6,16 +6,17 @@ import 'simple_register_screen.dart';
 import '../api/api_client.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'otp_verify_screen.dart';
+import 'catalog_home_screen.dart';
 
-class OtpRequestScreen extends StatefulWidget {
+class LoginScreen extends StatefulWidget {
   final bool isArabic;
-  const OtpRequestScreen({super.key, this.isArabic = false});
+  const LoginScreen({super.key, this.isArabic = false});
 
   @override
-  State<OtpRequestScreen> createState() => _OtpRequestScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _OtpRequestScreenState extends State<OtpRequestScreen> {
+class _LoginScreenState extends State<LoginScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
@@ -56,11 +57,7 @@ class _OtpRequestScreenState extends State<OtpRequestScreen> {
         if (!mounted) return;
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => OtpVerifyScreen(
-              isArabic: widget.isArabic,
-              name: res.customer!.name,
-              phone: fullPhone,
-            ),
+            builder: (_) => CatalogHomeScreen(isArabic: widget.isArabic, userName: res.customer!.name),
           ),
         );
       } else {

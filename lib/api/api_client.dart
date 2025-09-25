@@ -5,6 +5,7 @@ import 'api_exception.dart';
 import 'register_response.dart';
 // TODO: point this to your actual Product model file
 import '../models/product.dart';
+import '../models/GroupName.dart';
 
 class ApiClient {
   static final ApiClient instance = ApiClient._internal();
@@ -304,17 +305,13 @@ class ApiClient {
     }
   }
   // -------------------- Products --------------------
-
-  /// Same signature/behavior as the previous ProductsApi.fetchProducts.
-  /// Builds the endpoint exactly like:
-  /// `/api/Products?search=Sam&minPrice=&maxPrice=3500&brandId=&mainGroupId=1&subGroupId=1&sortBy=&sortOrder=`
   Future<List<Product>> fetchProducts({
-    String search = 'Sam',
+    String? search,
     String? minPrice, // empty when null
-    String? maxPrice = '3500',
+    String? maxPrice ,
     String? brandId, // empty when null
-    String? mainGroupId = '1',
-    String? subGroupId = '1',
+    String? mainGroupId,
+    String? subGroupId,
     String? sortBy, // empty when null
     String? sortOrder, // empty when null
   }) async {
@@ -345,6 +342,7 @@ class ApiClient {
 
     try {
       final decoded = jsonDecode(res.body);
+      print('decoded: $decoded');
       if (decoded is! Map || decoded['success'] != true) {
         throw ApiException('Unexpected payload: $decoded');
       }
@@ -360,14 +358,13 @@ class ApiClient {
     }
   }
 
-  /// If you prefer the raw maps instead of typed Product list.
   Future<List<Map<String, dynamic>>> fetchProductsRaw({
-    String search = 'Sam',
+    String? search ,
     String? minPrice,
-    String? maxPrice = '3500',
+    String? maxPrice ,
     String? brandId,
-    String? mainGroupId = '1',
-    String? subGroupId = '1',
+    String? mainGroupId,
+    String? subGroupId,
     String? sortBy,
     String? sortOrder,
   }) async {
@@ -396,6 +393,40 @@ class ApiClient {
     }
     final List data = decoded['data'] ?? [];
     return data.cast<Map<String, dynamic>>();
+  }
+
+  /// Fetch list of main groups (categories) for products
+  Future<List<GroupName>> fetchMainGroups() async {
+    http.Response res;
+    try {
+      res = await _http
+          .get(
+            _uri('/api/Products/main-groups'),
+            headers: const {'Accept': 'application/json'},
+          )
+          .timeout(const Duration(seconds: 20));
+    } on Exception catch (e) {
+      throw ApiException('Network error: ${e.toString()}');
+    }
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw ApiException('HTTP ${res.statusCode}: ${res.reasonPhrase ?? ''}');
+    }
+
+    try {
+      final decoded = jsonDecode(res.body);
+      if (decoded is! Map || decoded['success'] != true) {
+        throw ApiException('Unexpected payload: $decoded');
+      }
+      final List data = decoded['data'] ?? [];
+      return data
+          .map<GroupName>((e) => GroupName.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on ApiException {
+      rethrow;
+    } on Object catch (e) {
+      throw ApiException('Invalid response: ${e.toString()}');
+    }
   }
 
   // removed duplicate LoginResponse-based methods to avoid conflicts

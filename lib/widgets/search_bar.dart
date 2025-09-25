@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 class SearchBarBox extends StatelessWidget {
   final TextEditingController controller;
   final ValueChanged<String>? onSubmitted;
-  const SearchBarBox({super.key, required this.controller, this.onSubmitted});
+  final ValueChanged<String>? onChanged;
+  final VoidCallback? onSearchTap;
+  const SearchBarBox({super.key, required this.controller, this.onSubmitted, this.onChanged, this.onSearchTap});
 
   @override
   Widget build(BuildContext context) {
@@ -21,6 +23,7 @@ class SearchBarBox extends StatelessWidget {
           Expanded(
             child: TextField(
               controller: controller,
+              onChanged: onChanged,
               onSubmitted: onSubmitted,
               decoration: const InputDecoration(
                 hintText: '....',
@@ -29,6 +32,11 @@ class SearchBarBox extends StatelessWidget {
               ),
             ),
           ),
+          if (onSearchTap != null)
+            IconButton(
+              icon: const Icon(Icons.arrow_forward, color: Color(0xFF0B82FF)),
+              onPressed: onSearchTap,
+            ),
         ],
       ),
     );
