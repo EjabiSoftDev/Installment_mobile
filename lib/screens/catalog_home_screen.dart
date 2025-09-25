@@ -19,7 +19,7 @@ class CatalogHomeScreen extends StatefulWidget {
 }
 
 class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
-  final _api = ApiClient();
+  final _api = ApiClient.instance;
   late Future<List<Product>> _future;
   final _searchCtrl = TextEditingController(text: 'Sam');
 
