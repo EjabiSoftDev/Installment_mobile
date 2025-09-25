@@ -23,8 +23,11 @@ class CatalogHomeScreen extends StatefulWidget {
 class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
   final _api = ApiClient.instance;
 
-  // One future powers both the sections AND the full list below
+  // Filtered products for the grid
   late Future<List<Product>> _future;
+  // Unfiltered full brand list (so the brand row never collapses)
+  late Future<List<_BrandVM>> _brandsFuture;
+  // Main groups for categories row
   late Future<List<GroupName>> _groupsFuture;
 
   final _searchCtrl = TextEditingController(text: '');
@@ -32,7 +35,7 @@ class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
 
   String? _minPrice;
   String? _maxPrice;
-  // Single brand selection (tap to toggle). Keep others visible.
+  // Single brand selection (tap to toggle)
   String? _selectedBrandId;
   String? _mainGroupId;
   String? _subGroupId;
@@ -43,7 +46,8 @@ class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _future = _load();
+    _future = _load();                 // filtered products
+    _brandsFuture = _loadAllBrands();  // full, unfiltered brand list
     _groupsFuture = _api.fetchMainGroups();
     _searchCtrl.addListener(_onSearchChanged);
   }
@@ -59,6 +63,24 @@ class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
         sortOrder: _sortOrder,
       );
 
+  // Fetch all brands from an unfiltered product list so the brand scroller
+  // always shows every brand, even after a brand is selected.
+  Future<List<_BrandVM>> _loadAllBrands() async {
+    final all = await _api.fetchProducts();
+    final byId = <int, _BrandVM>{};
+    for (final p in all) {
+      final b = p.brand;
+      byId[b.id] = _BrandVM(
+        id: b.id.toString(),
+        name: b.name,
+        logoUrl: _api.toAbsolute(b.logo ?? ''),
+      );
+    }
+    final list = byId.values.toList()
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return list;
+  }
+
   void _applyFilters() => setState(() => _future = _load());
 
   void _onSearchChanged() {
@@ -67,6 +89,28 @@ class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
       if (!mounted) return;
       _applyFilters();
     });
+  }
+
+  /// BRAND SELECTION LOGIC
+  /// - Selecting a brand filters products by that brand
+  /// - Tapping the same brand again (unselect) clears **all** filters (brand, category, price, sort, search)
+  void _selectBrand(String? brandId) {
+    setState(() {
+      if (brandId == null) {
+        // Clear all filters and search
+        _selectedBrandId = null;
+        _mainGroupId = null;
+        _subGroupId = null;
+        _minPrice = null;
+        _maxPrice = null;
+        _sortBy = null;
+        _sortOrder = null;
+        if (_searchCtrl.text.isNotEmpty) _searchCtrl.clear();
+      } else {
+        _selectedBrandId = brandId;
+      }
+    });
+    _applyFilters();
   }
 
   Future<void> _showFilterDialog() async {
@@ -195,7 +239,7 @@ class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Header(hello: hello, subHello: subHello),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 24),
                     // Submit (keyboard search) triggers the API fetch
                     SearchBarBox(
                       controller: _searchCtrl,
@@ -265,49 +309,89 @@ class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    // Show Brands row only when Brands tab is active
+
+                    // Brands tab: show ALL brands (unfiltered), single-select behavior
                     if (_showBrands) ...[
                       TitleRow(title: brandsTitle),
-                      const SizedBox(height: 8),
-                      FutureBuilder<List<Product>>(
-                        future: _future,
+                      const SizedBox(height: 18),
+                      FutureBuilder<List<_BrandVM>>(
+                        future: _brandsFuture,
                         builder: (context, snap) {
-                          if (!snap.hasData) return const SizedBox.shrink();
-                          final items = snap.data!;
-                          final byId = <int, Map<String, String?>>{}; // id -> {name, logo}
-                          for (final p in items) {
-                            final b = p.brand;
-                            byId[b.id] = {
-                              'name': b.name,
-                              'logo': b.logo,
-                            };
+                          if (snap.connectionState == ConnectionState.waiting) {
+                            return const SizedBox.shrink();
                           }
-                          if (byId.isEmpty) return const SizedBox.shrink();
+                          if (snap.hasError) {
+                            return ErrorBox(
+                              message: isAr ? 'تعذر تحميل الماركات' : 'Failed to load brands',
+                              onRetry: () => setState(() => _brandsFuture = _loadAllBrands()),
+                            );
+                          }
+                          final items = snap.data ?? [];
+                          if (items.isEmpty) return const SizedBox.shrink();
+
                           return SizedBox(
                             height: 116,
                             child: ListView.separated(
-                              padding: const EdgeInsets.symmetric(horizontal: 2),
+                              padding: const EdgeInsets.symmetric(horizontal: 21, vertical: 2),
                               scrollDirection: Axis.horizontal,
-                              itemCount: byId.length,
+                              itemCount: items.length,
                               separatorBuilder: (_, __) => const SizedBox(width: 12),
                               itemBuilder: (_, i) {
-                                final id = byId.keys.elementAt(i);
-                                final data = byId[id]!;
-                                final selected = _selectedBrandId == id.toString();
-                                final label = data['name'] ?? '';
-                                final logo = data['logo'];
+                                final b = items[i];
+                                final selected = _selectedBrandId == b.id;
                                 return _BrandCard(
-                                  label: label,
-                                  logoUrl: _api.toAbsolute(logo ?? ''),
+                                  label: b.name,
+                                  logoUrl: b.logoUrl,
                                   selected: selected,
                                   onTap: () {
+                                    // tap same brand => unselect => clear ALL filters & show all products
+                                    if (selected) {
+                                      _selectBrand(null);
+                                    } else {
+                                      _selectBrand(b.id);
+                                    }
+                                  },
+                                );
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 29), // space between brands and products
+                    ],
+
+                    // Sections tab: categories row
+                    if (!_showBrands) ...[
+                      TitleRow(title: categories),
+                      const SizedBox(height: 20),
+                      FutureBuilder<List<GroupName>>(
+                        future: _groupsFuture,
+                        builder: (context, snap) {
+                          if (snap.connectionState == ConnectionState.waiting) {
+                            return const SizedBox.shrink();
+                          }
+                          final items = snap.data ?? [];
+                          if (items.isEmpty) return const SizedBox.shrink();
+                          return SizedBox(
+                            height: 20,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: items.length,
+                              separatorBuilder: (_, __) => const SizedBox(width: 8),
+                              itemBuilder: (_, i) {
+                                final g = items[i];
+                                final String id = g.id.toString();
+                                final String label = isAr ? g.nameAr : g.nameEn;
+                                final bool selected = _mainGroupId == id;
+                                return ChoiceChip(
+                                  label: Text(label),
+                                  selected: selected,
+                                  onSelected: (_) {
                                     setState(() {
-                                      _showBrands = true; // keep brands visible
-                                      final key = id.toString();
-                                      if (_selectedBrandId == key) {
-                                        _selectedBrandId = null; // toggle off
+                                      if (_mainGroupId == id) {
+                                        _mainGroupId = null; // toggle off
                                       } else {
-                                        _selectedBrandId = key; // select exclusively
+                                        _mainGroupId = id; // toggle on
                                       }
                                     });
                                     _applyFilters();
@@ -318,53 +402,10 @@ class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
                           );
                         },
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 24), // space between categories and products
                     ],
-                    // Show Sections row only when Sections tab is active
-                    if (!_showBrands) ...[
-                      TitleRow(title: categories),
-                      const SizedBox(height: 10),
-                    ],
-                    // Categories from API: /api/Products/main-groups
-                    if (!_showBrands) FutureBuilder<List<GroupName>>(
-                      future: _groupsFuture,
-                      builder: (context, snap) {
-                        if (snap.connectionState == ConnectionState.waiting) {
-                          return const SizedBox.shrink();
-                        }
-                        final items = snap.data ?? [];
-                        if (items.isEmpty) return const SizedBox.shrink();
-                        return SizedBox(
-                          height: 40,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: items.length,
-                            separatorBuilder: (_, __) => const SizedBox(width: 8),
-                            itemBuilder: (_, i) {
-                              final g = items[i];
-                              final String id = g.id.toString();
-                              final String label = isAr ? g.nameAr : g.nameEn;
-                               final bool selected = _mainGroupId == id;
-                              return ChoiceChip(
-                                label: Text(label),
-                                selected: selected,
-                                onSelected: (_) {
-                                  setState(() {
-                                    if (_mainGroupId == id) {
-                                      _mainGroupId = null; // toggle off
-                                    } else {
-                                      _mainGroupId = id; // toggle on
-                                    }
-                                  });
-                                  _applyFilters();
-                                },
-                              );
-                            },
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 12),
+
+                    // Products grid (filtered)
                     FutureBuilder<List<Product>>(
                       future: _future,
                       builder: (context, snap) {
@@ -387,7 +428,7 @@ class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
                           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
                             crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
+                            mainAxisSpacing: 18,
                             childAspectRatio: 0.78,
                           ),
                           itemCount: items.length,
@@ -476,6 +517,13 @@ class DynamicSections extends StatelessWidget {
     if (isArabic) return ar ?? en ?? 'غير مصنف';
     return en ?? ar ?? 'Uncategorized';
   }
+}
+
+class _BrandVM {
+  final String id;
+  final String name;
+  final String logoUrl;
+  _BrandVM({required this.id, required this.name, required this.logoUrl});
 }
 
 class _BrandCard extends StatelessWidget {
