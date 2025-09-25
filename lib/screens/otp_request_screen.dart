@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
 import 'package:easy_localization/easy_localization.dart';
-import 'otp_verify_screen.dart';
 import 'registration_screen.dart';
 import 'simple_register_screen.dart';
+import '../api/api_client.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'otp_verify_screen.dart';
 
 class OtpRequestScreen extends StatefulWidget {
   final bool isArabic;
@@ -13,35 +15,73 @@ class OtpRequestScreen extends StatefulWidget {
   State<OtpRequestScreen> createState() => _OtpRequestScreenState();
 }
 
-//tamer test
 class _OtpRequestScreenState extends State<OtpRequestScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  bool _obscurePassword = true;
 
   Country _selectedCountry =
       const Country(code: 'JO', dialCode: '962', flag: '🇯🇴', name: 'Jordan');
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _passwordController.dispose();
     _phoneController.dispose();
     super.dispose();
   }
 
-  void _sendOtp() {
+  bool _loading = false;
+
+  Future<void> _login() async {
     if (_formKey.currentState?.validate() != true) return;
-    final String name = _nameController.text.trim();
     final String fullPhone =
         '+${_selectedCountry.dialCode}${_phoneController.text.trim()}';
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => OtpVerifyScreen(
-          name: name,
-          phone: fullPhone,
-        ),
-      ),
-    );
+    final String password = _passwordController.text.trim();
+    final int languageId = widget.isArabic ? 1 : 2; // adjust if needed
+
+    setState(() => _loading = true);
+    try {
+      final res = await ApiClient.instance.loginCustomer(
+        phone: fullPhone,
+        password: password,
+        languageId: languageId,
+      );
+      if (res.success && res.customer != null) {
+        const storage = FlutterSecureStorage();
+        await storage.write(key: 'Name', value: res.customer!.name);
+        await storage.write(key: 'LanguageId', value: languageId.toString());
+        await storage.write(key: 'Password', value: password);
+        await storage.write(key: 'Phone', value: fullPhone);
+        if (!mounted) return;
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => OtpVerifyScreen(
+              isArabic: widget.isArabic,
+              name: res.customer!.name,
+              phone: fullPhone,
+            ),
+          ),
+        );
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(res.message.isNotEmpty
+                  ? res.message
+                  : (widget.isArabic
+                      ? 'بيانات غير صحيحة'
+                      : 'Invalid phone or password'))),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   void _pickCountry() async {
@@ -64,9 +104,9 @@ class _OtpRequestScreenState extends State<OtpRequestScreen> {
     final bool isAr = widget.isArabic;
     final ui.TextDirection direction =
         isAr ? ui.TextDirection.rtl : ui.TextDirection.ltr;
-    final String nameHint = 'name'.tr();
     final String phoneHint = 'phone'.tr();
     final String loginText = 'login'.tr();
+    final String passwordHint = isAr ? 'كلمة المرور' : 'Password';
 
     return Scaffold(
       body: Stack(
@@ -84,18 +124,7 @@ class _OtpRequestScreenState extends State<OtpRequestScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _RoundedField(
-                        child: TextFormField(
-                          controller: _nameController,
-                          textAlign: isAr ? TextAlign.right : TextAlign.left,
-                          decoration: InputDecoration(
-                              hintText: nameHint, border: InputBorder.none),
-                          validator: (v) => (v == null || v.trim().isEmpty)
-                              ? (isAr ? 'أدخل الاسم' : 'Enter your name')
-                              : null,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
+                      // Phone first
                       _RoundedField(
                         child: Row(
                           children: [
@@ -138,10 +167,33 @@ class _OtpRequestScreenState extends State<OtpRequestScreen> {
                           ],
                         ),
                       ),
+                      const SizedBox(height: 16),
+                      // Password field at bottom (below phone)
+                      _RoundedField(
+                        child: TextFormField(
+                          controller: _passwordController,
+                          obscureText: _obscurePassword,
+                          textAlign: isAr ? TextAlign.right : TextAlign.left,
+                          decoration: InputDecoration(
+                            hintText: passwordHint,
+                            border: InputBorder.none,
+                            suffixIcon: IconButton(
+                              onPressed: () => setState(
+                                  () => _obscurePassword = !_obscurePassword),
+                              icon: Icon(_obscurePassword
+                                  ? Icons.visibility
+                                  : Icons.visibility_off),
+                            ),
+                          ),
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? (isAr ? 'أدخل كلمة المرور' : 'Enter password')
+                              : null,
+                        ),
+                      ),
                       const SizedBox(height: 20),
                       const SizedBox(height: 8),
                       GestureDetector(
-                        onTap: _sendOtp,
+                        onTap: _loading ? null : _login,
                         child: Text(
                           loginText,
                           style: const TextStyle(
@@ -150,12 +202,18 @@ class _OtpRequestScreenState extends State<OtpRequestScreen> {
                               color: Colors.black87),
                         ),
                       ),
+                      if (_loading)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 12),
+                          child: CircularProgressIndicator(),
+                        ),
                       const SizedBox(height: 10),
                       TextButton(
                         onPressed: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) => const InitialRegisterScreen(),
+                              builder: (_) =>
+                                  const SimpleRegisterScreen(isArabic: true),
                             ),
                           );
                         },
