@@ -55,15 +55,17 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
     }
     setState(() => _loading = true);
     try {
-      final success =
+      final res =
           await ApiClient.instance.verifyOtp(phone: widget.phone, otp: code);
-      if (success) {
+      if (res.success && res.customer != null) {
         if (!mounted) return;
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => CatalogHomeScreen(
               isArabic: widget.isArabic,
-              userName: widget.name,
+              userName: res.customer!.name.isNotEmpty
+                  ? res.customer!.name
+                  : widget.name,
             ),
           ),
         );
@@ -71,9 +73,11 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(widget.isArabic
-                  ? 'رمز غير صالح'
-                  : 'Invalid or expired OTP')),
+              content: Text(res.message.isNotEmpty
+                  ? res.message
+                  : (widget.isArabic
+                      ? 'رمز غير صالح'
+                      : 'Invalid or expired OTP'))),
         );
       }
     } catch (e) {
@@ -103,21 +107,24 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
   Future<void> _resendOtp() async {
     if (_secondsLeft > 0) return;
     try {
-      final success = await ApiClient.instance
-          .sendOtp(phone: widget.phone, name: widget.name);
+      final res = await ApiClient.instance.resendOtp(phone: widget.phone);
       if (!mounted) return;
-      if (success) {
+      if (res.success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(widget.isArabic ? 'تم إرسال رمز جديد' : 'OTP resent')),
+              content: Text(res.message.isNotEmpty
+                  ? res.message
+                  : (widget.isArabic ? 'تم إرسال رمز جديد' : 'OTP resent'))),
         );
         _startCooldown();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(widget.isArabic
-                  ? 'تعذر إرسال الرمز'
-                  : 'Failed to resend OTP')),
+              content: Text(res.message.isNotEmpty
+                  ? res.message
+                  : (widget.isArabic
+                      ? 'تعذر إرسال الرمز'
+                      : 'Failed to resend OTP'))),
         );
       }
     } catch (e) {
