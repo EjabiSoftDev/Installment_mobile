@@ -13,12 +13,14 @@ class OtpRequestScreen extends StatefulWidget {
   State<OtpRequestScreen> createState() => _OtpRequestScreenState();
 }
 
+//tamer test
 class _OtpRequestScreenState extends State<OtpRequestScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
 
-  Country _selectedCountry = const Country(code: 'JO', dialCode: '962', flag: '🇯🇴', name: 'Jordan');
+  Country _selectedCountry =
+      const Country(code: 'JO', dialCode: '962', flag: '🇯🇴', name: 'Jordan');
 
   @override
   void dispose() {
@@ -30,7 +32,8 @@ class _OtpRequestScreenState extends State<OtpRequestScreen> {
   void _sendOtp() {
     if (_formKey.currentState?.validate() != true) return;
     final String name = _nameController.text.trim();
-    final String fullPhone = '+${_selectedCountry.dialCode}${_phoneController.text.trim()}';
+    final String fullPhone =
+        '+${_selectedCountry.dialCode}${_phoneController.text.trim()}';
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => OtpVerifyScreen(
@@ -48,7 +51,6 @@ class _OtpRequestScreenState extends State<OtpRequestScreen> {
         selected: _selectedCountry,
         countries: const [
           Country(code: 'JO', dialCode: '962', flag: '🇯🇴', name: 'Jordan'),
-
         ],
       ),
     );
@@ -60,7 +62,8 @@ class _OtpRequestScreenState extends State<OtpRequestScreen> {
   @override
   Widget build(BuildContext context) {
     final bool isAr = widget.isArabic;
-    final ui.TextDirection direction = isAr ? ui.TextDirection.rtl : ui.TextDirection.ltr;
+    final ui.TextDirection direction =
+        isAr ? ui.TextDirection.rtl : ui.TextDirection.ltr;
     final String nameHint = 'name'.tr();
     final String phoneHint = 'phone'.tr();
     final String loginText = 'login'.tr();
@@ -85,7 +88,8 @@ class _OtpRequestScreenState extends State<OtpRequestScreen> {
                         child: TextFormField(
                           controller: _nameController,
                           textAlign: isAr ? TextAlign.right : TextAlign.left,
-                          decoration: InputDecoration(hintText: nameHint, border: InputBorder.none),
+                          decoration: InputDecoration(
+                              hintText: nameHint, border: InputBorder.none),
                           validator: (v) => (v == null || v.trim().isEmpty)
                               ? (isAr ? 'أدخل الاسم' : 'Enter your name')
                               : null,
@@ -98,13 +102,18 @@ class _OtpRequestScreenState extends State<OtpRequestScreen> {
                             GestureDetector(
                               onTap: _pickCountry,
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8.0),
                                 child: Row(
                                   children: [
-                                    Text(_selectedCountry.flag, style: const TextStyle(fontSize: 18)),
+                                    Text(_selectedCountry.flag,
+                                        style: const TextStyle(fontSize: 18)),
                                     const SizedBox(width: 6),
-                                    Text('+${_selectedCountry.dialCode}', style: const TextStyle(color: Colors.grey)),
-                                    const VerticalDivider(width: 16, thickness: 1),
+                                    Text('+${_selectedCountry.dialCode}',
+                                        style: const TextStyle(
+                                            color: Colors.grey)),
+                                    const VerticalDivider(
+                                        width: 16, thickness: 1),
                                   ],
                                 ),
                               ),
@@ -113,11 +122,17 @@ class _OtpRequestScreenState extends State<OtpRequestScreen> {
                               child: TextFormField(
                                 controller: _phoneController,
                                 keyboardType: TextInputType.phone,
-                                textAlign: isAr ? TextAlign.right : TextAlign.left,
-                                decoration: InputDecoration(hintText: phoneHint, border: InputBorder.none),
-                                validator: (v) => (v == null || v.trim().isEmpty)
-                                    ? (isAr ? 'أدخل رقم الجوال' : 'Enter phone number')
-                                    : null,
+                                textAlign:
+                                    isAr ? TextAlign.right : TextAlign.left,
+                                decoration: InputDecoration(
+                                    hintText: phoneHint,
+                                    border: InputBorder.none),
+                                validator: (v) =>
+                                    (v == null || v.trim().isEmpty)
+                                        ? (isAr
+                                            ? 'أدخل رقم الجوال'
+                                            : 'Enter phone number')
+                                        : null,
                               ),
                             ),
                           ],
@@ -129,7 +144,10 @@ class _OtpRequestScreenState extends State<OtpRequestScreen> {
                         onTap: _sendOtp,
                         child: Text(
                           loginText,
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black87),
+                          style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87),
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -166,7 +184,8 @@ class _RoundedField extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: const [
-          BoxShadow(color: Color(0x22000000), blurRadius: 8, offset: Offset(0, 4)),
+          BoxShadow(
+              color: Color(0x22000000), blurRadius: 8, offset: Offset(0, 4)),
         ],
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -180,7 +199,11 @@ class Country {
   final String dialCode;
   final String flag;
   final String name;
-  const Country({required this.code, required this.dialCode, required this.flag, required this.name});
+  const Country(
+      {required this.code,
+      required this.dialCode,
+      required this.flag,
+      required this.name});
 }
 
 class _CountryPicker extends StatelessWidget {
@@ -200,7 +223,8 @@ class _CountryPicker extends StatelessWidget {
             leading: Text(c.flag, style: const TextStyle(fontSize: 22)),
             title: Text(c.name),
             subtitle: Text('+${c.dialCode}'),
-            trailing: isSelected ? const Icon(Icons.check, color: Colors.blue) : null,
+            trailing:
+                isSelected ? const Icon(Icons.check, color: Colors.blue) : null,
             onTap: () => Navigator.of(context).pop(c),
           );
         },
@@ -208,5 +232,3 @@ class _CountryPicker extends StatelessWidget {
     );
   }
 }
-
-
