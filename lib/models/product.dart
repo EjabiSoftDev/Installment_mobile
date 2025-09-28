@@ -19,6 +19,7 @@ class Product {
   final GroupName? subGroup;
   final List<String> imageUrls;
   final int reviewsCount;
+  final double? overallRating;
 
   const Product({
     required this.id,
@@ -36,6 +37,7 @@ class Product {
     required this.subGroup,
     required this.imageUrls,
     required this.reviewsCount,
+    this.overallRating,
   });
 
   factory Product.fromJson(Map<String, dynamic> j) {
@@ -70,6 +72,7 @@ class Product {
       subGroup: j['SubGroup'] == null ? null : GroupName.fromJson(j['SubGroup']),
       imageUrls: imgs,
       reviewsCount: _toI(j['ReviewsCount']),
+      overallRating: j['OverallRating'] != null ? _toD(j['OverallRating']) : null,
     );
   }
 }

@@ -1,20 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'dart:ui' as ui;
 import 'dart:async';
 import '../widgets/header.dart';
 import '../widgets/search_bar.dart';
 // import '../widgets/chips_row.dart';
 // import '../widgets/brand_row.dart';
 import '../widgets/product_card.dart';
-import '../widgets/bottom_nav.dart';
 import '../widgets/common.dart';
+import '../widgets/special_request_dialog.dart';
 import '../api/api_client.dart';
 import '../models/product.dart';
 import '../models/GroupName.dart';
+import 'settings_screen.dart';
 
 class CatalogHomeScreen extends StatefulWidget {
   final bool isArabic;
   final String userName;
-  const CatalogHomeScreen({super.key, this.isArabic = true, required this.userName});
+  final bool showHeader;
+  const CatalogHomeScreen({
+    super.key, 
+    this.isArabic = true, 
+    required this.userName,
+    this.showHeader = true,
+  });
 
   @override
   State<CatalogHomeScreen> createState() => _CatalogHomeScreenState();
@@ -118,14 +127,14 @@ class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
     String? sortLocal = _sortOrder; // 'asc' | 'desc' | null
 
     final bool isAr = widget.isArabic;
-    final String title = isAr ? 'تصفية المنتجات' : 'Filter products';
-    final String min = isAr ? 'أقل سعر' : 'Min price';
-    final String max = isAr ? 'أعلى سعر' : 'Max price';
-    final String sort = isAr ? 'الترتيب' : 'Sort';
-    final String lowHigh = isAr ? 'الأدنى إلى الأعلى' : 'Lowest to Highest';
-    final String highLow = isAr ? 'الأعلى إلى الأدنى' : 'Highest to Lowest';
-    final String apply = isAr ? 'تطبيق' : 'Apply';
-    final String clear = isAr ? 'مسح' : 'Clear';
+    final String title = 'filter_products'.tr();
+    final String min = 'min_price'.tr();
+    final String max = 'max_price'.tr();
+    final String sort = 'sort'.tr();
+    final String lowHigh = 'lowest_to_highest'.tr();
+    final String highLow = 'highest_to_lowest'.tr();
+    final String apply = 'apply'.tr();
+    final String clear = 'clear'.tr();
 
     await showDialog<void>(
       context: context,
@@ -212,37 +221,45 @@ class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final isAr = widget.isArabic;
-    final direction = isAr ? TextDirection.rtl : TextDirection.ltr;
-    final hello = isAr ? 'مرحبا ${widget.userName}' : 'Hello ${widget.userName}';
-    final subHello = isAr ? 'عمان، الأردن' : 'Amman, Jordan';
-    final chooseUnavailable =
-        isAr ? 'اشترِ منتج غير متوفر في التطبيق' : 'Buy a product not in the app';
-    final categories = isAr ? 'الأصناف' : 'Categories';
-    final brandsTitle = isAr ? 'الماركات' : 'Brands';
-    final more = isAr ? 'اختر' : 'Choose';
-    final allResults = isAr ? 'كل النتائج' : 'All Results';
+    final direction = isAr ? ui.TextDirection.rtl : ui.TextDirection.ltr;
+    final hello = 'hello_name'.tr(namedArgs: {'name': widget.userName});
+    final subHello = 'amman_jordan'.tr();
+    final chooseUnavailable = 'unavailable_buy'.tr();
+    final categories = 'categories'.tr();
+    final brandsTitle = 'brands'.tr();
+    final more = 'choose'.tr();
+    final allResults = 'all_results'.tr();
 
     return Directionality(
       textDirection: direction,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF2F6FF),
+        backgroundColor: Colors.white,
         body: Stack(
           children: [
-            Positioned.fill(
-              child: Image.asset('assets/images/bg_main.png', fit: BoxFit.cover),
-            ),
             SafeArea(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Header(hello: hello, subHello: subHello),
-                    const SizedBox(height: 24),
+                    if (widget.showHeader) ...[
+                      Header(
+                        hello: hello, 
+                        subHello: subHello,
+                        onSettingsTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => SettingsScreen(isArabic: isAr),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                    ],
                     // Search works alongside brand/section/price/sort filters
                     SearchBarBox(
                       controller: _searchCtrl,
-                      onChanged: (_) => _applyFilters(), // realtime
+                      onChanged: (_) => _onSearchChanged(), // use debounced method
                       onSubmitted: (_) => _applyFilters(),
                       onSearchTap: _applyFilters,
                     ),
@@ -250,7 +267,14 @@ class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
                     SizedBox(
                       height: 44,
                       child: ElevatedButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => SpecialRequestDialog(
+                              isArabic: isAr,
+                            ),
+                          );
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF0B82FF),
                           foregroundColor: Colors.white,
@@ -321,7 +345,7 @@ class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
                           }
                           if (snap.hasError) {
                             return ErrorBox(
-                              message: isAr ? 'تعذر تحميل الماركات' : 'Failed to load brands',
+                              message: 'failed_to_load_brands'.tr(),
                               onRetry: () => setState(() => _brandsFuture = _loadAllBrands()),
                             );
                           }
@@ -422,13 +446,13 @@ class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
                         }
                         if (snap.hasError) {
                           return ErrorBox(
-                            message: isAr ? 'حدث خطأ أثناء تحميل المنتجات' : 'Failed to load products',
+                            message: 'failed_to_load_products'.tr(),
                             onRetry: _applyFilters,
                           );
                         }
                         final items = snap.data ?? [];
                         if (items.isEmpty) {
-                          return EmptyBox(text: isAr ? 'لا توجد نتائج' : 'No results');
+                          return EmptyBox(text: 'no_results'.tr());
                         }
                         return GridView.builder(
                           shrinkWrap: true,
@@ -443,7 +467,6 @@ class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
                           itemBuilder: (_, i) => ProductCard.fromProduct(
                             p: items[i],
                             isArabic: isAr,
-                            moreText: more,
                           ),
                         );
                       },
@@ -455,8 +478,7 @@ class _CatalogHomeScreenState extends State<CatalogHomeScreen> {
               ),
             ),
           ],
-        ),
-        bottomNavigationBar: BottomNav(isArabic: isAr),
+        )
       ),
     );
   }
@@ -513,7 +535,6 @@ class DynamicSections extends StatelessWidget {
                   child: ProductCard.fromProduct(
                     p: p,
                     isArabic: isArabic,
-                    moreText: moreText,
                   ),
                 );
               },
@@ -528,8 +549,8 @@ class DynamicSections extends StatelessWidget {
   String _mainGroupName(Product p) {
     final String? ar = p.mainGroup?.nameAr;
     final String? en = p.mainGroup?.nameEn;
-    if (isArabic) return ar ?? en ?? 'غير مصنف';
-    return en ?? ar ?? 'Uncategorized';
+    if (isArabic) return ar ?? en ?? 'uncategorized'.tr();
+    return en ?? ar ?? 'uncategorized'.tr();
   }
 }
 

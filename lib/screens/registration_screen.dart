@@ -2,6 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'dart:ui' as ui;
 import '../widgets/secondary_otp_dialog.dart';
 import '../api/api_client.dart';
 
@@ -26,6 +29,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final TextEditingController _employerNameController = TextEditingController();
   final TextEditingController _employerPhoneController = TextEditingController();
   final TextEditingController _workLocationController = TextEditingController();
+  
+  // Customer data and status
+  Map<String, dynamic>? _customerData;
+  int? _statusId;
+  bool _isLoading = true;
 
 Country _secondarySelectedCountry = const Country(code: 'JO', dialCode: '962', flag: '🇯🇴', name: 'Jordan');
 
@@ -34,6 +42,56 @@ Country _secondarySelectedCountry = const Country(code: 'JO', dialCode: '962', f
   List<File> _supportingDocs = <File>[];
   final ImagePicker _picker = ImagePicker();
   bool _isSecondaryPhoneVerified = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCustomerData();
+  }
+
+  Future<void> _loadCustomerData() async {
+    const storage = FlutterSecureStorage();
+    final customerDataString = await storage.read(key: 'customer_data');
+    print('🔍 Registration - Loading customer data: $customerDataString');
+    
+    if (customerDataString != null) {
+      final parsedData = Map<String, dynamic>.from(
+        Uri.splitQueryString(customerDataString)
+      );
+      print('🔍 Registration - Parsed customer data: $parsedData');
+      
+      setState(() {
+        _customerData = parsedData;
+        _statusId = int.tryParse(parsedData['StatusId']?.toString() ?? '');
+        _isLoading = false;
+      });
+      
+      // Pre-fill data for status 3 (approved - fill only)
+      if (_statusId == 3) {
+        _prefillDataFromLogin();
+      }
+    } else {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _prefillDataFromLogin() {
+    if (_customerData == null) return;
+    
+    _nameController.text = _customerData!['FullName'] ?? '';
+    _addressController.text = _customerData!['ResidenceAddress'] ?? '';
+    _nationalIdController.text = _customerData!['NationalId'] ?? '';
+    _secondaryPhoneController.text = _customerData!['SecondaryPhone'] ?? '';
+    _secondaryOwnerNameController.text = _customerData!['SecondaryPhoneName'] ?? '';
+    _secondaryRelationController.text = _customerData!['SecondaryPhoneRelationName'] ?? '';
+    _employerNameController.text = _customerData!['EmployerName'] ?? '';
+    _employerPhoneController.text = _customerData!['EmployerPhone'] ?? '';
+    _workLocationController.text = _customerData!['WorkLocation'] ?? '';
+    
+    print('🔍 Registration - Data pre-filled for status 3');
+  }
 
   bool get _isAllFilledAndReadyToSubmit {
     final bool textsFilled =
@@ -192,15 +250,433 @@ Country _secondarySelectedCountry = const Country(code: 'JO', dialCode: '962', f
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    // Handle different statuses
+    switch (_statusId) {
+      case 3:
+        return _buildStatus3Screen();
+      case 4:
+        return _buildRejectedScreen();
+      case 5:
+        return _buildAdminNoteScreen();
+      default:
+        return _buildRegistrationForm();
+    }
+  }
+
+  Widget _buildStatus3Screen() {
     final bool isAr = widget.isArabic;
-    final TextDirection direction = isAr ? TextDirection.rtl : TextDirection.ltr;
+    final ui.TextDirection direction = isAr ? ui.TextDirection.rtl : ui.TextDirection.ltr;
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('approved_data'.tr()),
+        backgroundColor: const Color(0xFF0B82FF),
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: Directionality(
+        textDirection: direction,
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF0B82FF),
+                Color(0xFFF2F6FF),
+              ],
+              stops: [0.0, 0.3],
+            ),
+          ),
+          child: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                children: [
+                  // Status Header Card
+                  Card(
+                    elevation: 8,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF4CAF50), Color(0xFF45A049)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.check_circle,
+                              size: 48,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            isAr ? 'تم الموافقة على طلبك' : 'Your Application is Approved',
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            isAr 
+                                ? 'تم ملء جميع البيانات المطلوبة'
+                                : 'All required information has been completed',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.white.withOpacity(0.9),
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Data Display Cards
+                  _buildDataCard(
+                    title: isAr ? 'البيانات الشخصية' : 'Personal Information',
+                    icon: Icons.person,
+                    children: [
+                      _buildDataRow(
+                        label: isAr ? 'الاسم الكامل' : 'Full Name',
+                        value: _customerData?['FullName'] ?? '',
+                        icon: Icons.badge,
+                      ),
+                      _buildDataRow(
+                        label: isAr ? 'الهاتف الرئيسي' : 'Primary Phone',
+                        value: _customerData?['Phone'] ?? '',
+                        icon: Icons.phone,
+                      ),
+                      _buildDataRow(
+                        label: isAr ? 'الهوية الوطنية' : 'National ID',
+                        value: _customerData?['NationalId'] ?? '',
+                        icon: Icons.credit_card,
+                      ),
+                      _buildDataRow(
+                        label: isAr ? 'جواز السفر' : 'Passport',
+                        value: _customerData?['Passport'] ?? '',
+                        icon: Icons.airplane_ticket,
+                      ),
+                      _buildDataRow(
+                        label: isAr ? 'عنوان السكن' : 'Residence Address',
+                        value: _customerData?['ResidenceAddress'] ?? '',
+                        icon: Icons.home,
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  _buildDataCard(
+                    title: isAr ? 'بيانات جهة العمل' : 'Employment Information',
+                    icon: Icons.work,
+                    children: [
+                      _buildDataRow(
+                        label: isAr ? 'اسم جهة العمل' : 'Employer Name',
+                        value: _customerData?['EmployerName'] ?? '',
+                        icon: Icons.business,
+                      ),
+                      _buildDataRow(
+                        label: isAr ? 'هاتف جهة العمل' : 'Work Phone',
+                        value: _customerData?['EmployerPhone'] ?? '',
+                        icon: Icons.phone_in_talk,
+                      ),
+                      _buildDataRow(
+                        label: isAr ? 'مكان العمل' : 'Work Location',
+                        value: _customerData?['WorkLocation'] ?? '',
+                        icon: Icons.location_on,
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  _buildDataCard(
+                    title: isAr ? 'بيانات الهاتف الثانوي' : 'Secondary Phone Information',
+                    icon: Icons.phone_android,
+                    children: [
+                      _buildDataRow(
+                        label: isAr ? 'الهاتف الثانوي' : 'Secondary Phone',
+                        value: _customerData?['SecondaryPhone'] ?? '',
+                        icon: Icons.phone_android,
+                      ),
+                      _buildDataRow(
+                        label: isAr ? 'اسم صاحب الهاتف' : 'Phone Owner Name',
+                        value: _customerData?['SecondaryPhoneName'] ?? '',
+                        icon: Icons.person_pin,
+                      ),
+                      _buildDataRow(
+                        label: isAr ? 'صلة القرابة' : 'Relation',
+                        value: _customerData?['SecondaryPhoneRelationName'] ?? '',
+                        icon: Icons.family_restroom,
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Action Buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.arrow_back),
+                          label: Text(isAr ? 'العودة' : 'Go Back'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey[600],
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 4,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(isAr ? 'تم حفظ البيانات' : 'Data saved successfully'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.save),
+                          label: Text(isAr ? 'حفظ' : 'Save'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0B82FF),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRejectedScreen() {
+    final bool isAr = widget.isArabic;
+    final ui.TextDirection direction = isAr ? ui.TextDirection.rtl : ui.TextDirection.ltr;
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('registration'.tr()),
+        backgroundColor: const Color(0xFF0B82FF),
+        foregroundColor: Colors.white,
+      ),
+      body: Directionality(
+        textDirection: direction,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.block,
+                  size: 80,
+                  color: Colors.red[400],
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  isAr ? 'تم رفض طلبك' : 'Your application has been rejected',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  isAr 
+                      ? 'عذراً، تم رفض طلبك. يرجى التواصل مع الدعم الفني لمزيد من المعلومات.'
+                      : 'Sorry, your application has been rejected. Please contact support for more information.',
+                  style: const TextStyle(fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0B82FF),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: Text(isAr ? 'العودة' : 'Go Back'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdminNoteScreen() {
+    final bool isAr = widget.isArabic;
+    final ui.TextDirection direction = isAr ? ui.TextDirection.rtl : ui.TextDirection.ltr;
+    final String adminNote = _customerData?['AdminNote'] ?? '';
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('admin_note'.tr()),
+        backgroundColor: const Color(0xFF0B82FF),
+        foregroundColor: Colors.white,
+      ),
+      body: Directionality(
+        textDirection: direction,
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            children: [
+              Card(
+                elevation: 4,
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.admin_panel_settings, color: Colors.orange),
+                          const SizedBox(width: 12),
+                          Text(
+                            isAr ? 'ملاحظة الإدارة' : 'Admin Note',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.orange, width: 1),
+                        ),
+                        child: Text(
+                          adminNote.isEmpty 
+                              ? (isAr ? 'لا توجد ملاحظات من الإدارة' : 'No admin notes available')
+                              : adminNote,
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                isAr 
+                    ? 'يرجى مراجعة الملاحظة أعلاه وإكمال البيانات المطلوبة'
+                    : 'Please review the note above and complete the required information',
+                style: const TextStyle(fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[600],
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(isAr ? 'العودة' : 'Go Back'),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          _statusId = 1; // Change to normal registration
+                        });
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0B82FF),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(isAr ? 'إكمال البيانات' : 'Complete Data'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRegistrationForm() {
+    final bool isAr = widget.isArabic;
+    final ui.TextDirection direction = isAr ? ui.TextDirection.rtl : ui.TextDirection.ltr;
 
     final String nameHint = isAr ? 'الاسم الكامل' : 'Full name';
-    // Removed email/primary phone hints
     final String addressHint = isAr ? 'العنوان' : 'Address';
     final String nidHint = isAr ? 'الرقم الوطني أو رقم الجواز' : 'National ID or Passport number';
     final String idPhoto = isAr ? 'صورة الهوية/الجواز' : 'ID/Passport photo';
-    // Removed profile photo label
     final String secondaryPhoneHint = isAr ? 'رقم الجوال الثانوي' : 'Secondary phone number';
     final String verifySecondaryText = isAr ? 'تحقق من الرقم' : 'Verify number';
     final String secondaryOwnerNameHint = isAr ? 'اسم صاحب الرقم الثانوي' : 'Secondary phone owner name';
@@ -405,6 +881,115 @@ Country _secondarySelectedCountry = const Country(code: 'JO', dialCode: '962', f
                   ),
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDataCard({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    return Card(
+      elevation: 6,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0B82FF).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: const Color(0xFF0B82FF),
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0B82FF),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDataRow({
+    required String label,
+    required String value,
+    required IconData icon,
+  }) {
+    final bool isAr = widget.isArabic;
+    
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(
+              icon,
+              size: 16,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[200]!),
+                  ),
+                  child: Text(
+                    value.isEmpty ? (isAr ? 'غير محدد' : 'Not specified') : value,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

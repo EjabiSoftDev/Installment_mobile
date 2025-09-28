@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class TitleRow extends StatelessWidget {
   final String title;
@@ -36,7 +37,7 @@ class ErrorBox extends StatelessWidget {
           children: [
             Text(message),
             const SizedBox(height: 8),
-            OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
+            OutlinedButton(onPressed: onRetry, child: Text('retry'.tr())),
           ],
         ),
       ),

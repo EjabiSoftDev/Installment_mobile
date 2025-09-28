@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 class Header extends StatelessWidget {
   final String hello;
   final String subHello;
-  const Header({super.key, required this.hello, required this.subHello});
+  final VoidCallback? onSettingsTap;
+  const Header({super.key, required this.hello, required this.subHello, this.onSettingsTap});
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +23,20 @@ class Header extends StatelessWidget {
             ],
           ),
         ),
+        // Settings button
+        GestureDetector(
+          onTap: onSettingsTap,
+          child: Container(
+            margin: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.all(8),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.settings, color: Color(0xFF0B82FF), size: 20),
+          ),
+        ),
+        // Profile avatar
         const CircleAvatar(
           radius: 18,
           backgroundColor: Colors.white,

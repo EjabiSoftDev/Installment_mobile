@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class BrandRow extends StatelessWidget {
   final bool isArabic;
@@ -9,9 +10,9 @@ class BrandRow extends StatelessWidget {
   Widget build(BuildContext context) {
     // Example IDs: adapt to your backend IDs if different.
     final items = [
-      _BrandItem(label: isArabic ? 'هواوي' : 'Huawei', icon: Icons.public, id: 2),
-      _BrandItem(label: isArabic ? 'سامسونج' : 'Samsung', icon: Icons.blur_circular, id: 1),
-      _BrandItem(label: isArabic ? 'آيفون' : 'Apple', icon: Icons.apple, id: 3, highlighted: true),
+      _BrandItem(label: 'huawei'.tr(), icon: Icons.public, id: 2),
+      _BrandItem(label: 'samsung'.tr(), icon: Icons.blur_circular, id: 1),
+      _BrandItem(label: 'apple'.tr(), icon: Icons.apple, id: 3, highlighted: true),
     ];
     return SizedBox(
       height: 104,

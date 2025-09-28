@@ -1,21 +1,52 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/services.dart';
 import 'LoginScreen.dart';
 
-class LanguageSelectionScreen extends StatelessWidget {
+class LanguageSelectionScreen extends StatefulWidget {
   const LanguageSelectionScreen({super.key});
 
-  void _goToNext(BuildContext context, String lang) {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => LoginScreen(isArabic: lang == 'ar'),
-      ),
-    );
+  @override
+  State<LanguageSelectionScreen> createState() => _LanguageSelectionScreenState();
+}
+
+class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
+  void _goToNext(int languageId) async {
+    // Set the locale based on language ID
+    final locale = languageId == 2 ? const Locale('ar') : const Locale('en');
+    
+    print('🌍 Setting locale to: $locale (Language ID: $languageId)');
+    
+    // Update the app's locale
+    await context.setLocale(locale);
+    
+    // Wait a bit for the locale to be set
+    await Future.delayed(const Duration(milliseconds: 100));
+    
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => LoginScreen(isArabic: languageId == 2), // Arabic = 2, English = 1
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    print('🌍 Language Selection Screen - Current locale: ${context.locale}');
+    
     return Scaffold(
-      body: Stack(
+      body: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+          systemNavigationBarColor: Colors.transparent,
+          systemNavigationBarIconBrightness: Brightness.dark,
+          systemNavigationBarDividerColor: Colors.transparent,
+        ),
+        child: Stack(
         children: [
           Positioned.fill(
             child: Image.asset(
@@ -37,10 +68,10 @@ class LanguageSelectionScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  'متعة في التسوق وراحة في الدفع',
+                Text(
+                  'shopping_pleasure'.tr(),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 18,
                     color: Color(0xFF2196F3),
                     fontWeight: FontWeight.w600,
@@ -53,7 +84,7 @@ class LanguageSelectionScreen extends StatelessWidget {
                     children: [
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () => _goToNext(context, 'en'),
+                          onPressed: () => _goToNext(1), // English = 1
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF2196F3),
                             foregroundColor: Colors.white,
@@ -62,13 +93,13 @@ class LanguageSelectionScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          child: const Text('English'),
+                          child: Text('english'.tr()),
                         ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () => _goToNext(context, 'ar'),
+                          onPressed: () => _goToNext(2), // Arabic = 2
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF2196F3),
                             foregroundColor: Colors.white,
@@ -77,7 +108,7 @@ class LanguageSelectionScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          child: const Text('العربية'),
+                          child: Text('arabic'.tr()),
                         ),
                       ),
                     ],
@@ -89,6 +120,7 @@ class LanguageSelectionScreen extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }

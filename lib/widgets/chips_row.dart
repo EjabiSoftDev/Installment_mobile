@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class ChipsRow extends StatelessWidget {
   final bool isArabic;
@@ -7,8 +8,8 @@ class ChipsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final a = isArabic ? 'تصنيف الأقساط' : 'Installment';
-    final b = isArabic ? 'تصنيف العلامة التجارية' : 'Brand';
+    final a = 'installment_category'.tr();
+    final b = 'brand_category'.tr();
     return Row(
       children: [
         _Chip(text: a, icon: Icons.check_circle),
