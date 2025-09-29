@@ -524,6 +524,72 @@ class ApiClient {
     }
   }
 
+  // -------------------- KYC Submission --------------------
+  Future<Map<String, dynamic>> submitKyc({
+    required int customerId,
+    required String fullName,
+    required String nationalId,
+    required String residenceAddress,
+    required String secondaryPhone,
+    required String secondaryPhoneName,
+    required int secondaryPhoneRelationId,
+    required String employerName,
+    required String employerPhone,
+    required String workLocation,
+    String? passport,
+    String? nationalIdImage,
+    String? passportImage,
+    String? salarySlip,
+    List<String>? additionalDocuments,
+  }) async {
+    try {
+      final Map<String, dynamic> body = {
+        'CustomerId': customerId,
+        'FullName': fullName,
+        'NationalId': nationalId,
+        'ResidenceAddress': residenceAddress,
+        'SecondaryPhone': secondaryPhone,
+        'SecondaryPhoneName': secondaryPhoneName,
+        'SecondaryPhoneRelationId': secondaryPhoneRelationId,
+        'EmployerName': employerName,
+        'EmployerPhone': employerPhone,
+        'WorkLocation': workLocation,
+      };
+
+      // Add optional fields if provided
+      if (passport != null && passport.isNotEmpty) {
+        body['Passport'] = passport;
+      }
+      if (nationalIdImage != null && nationalIdImage.isNotEmpty) {
+        body['NationalIdImage'] = nationalIdImage;
+      }
+      if (passportImage != null && passportImage.isNotEmpty) {
+        body['PassportImage'] = passportImage;
+      }
+      if (salarySlip != null && salarySlip.isNotEmpty) {
+        body['SalarySlip'] = salarySlip;
+      }
+      if (additionalDocuments != null && additionalDocuments.isNotEmpty) {
+        body['AdditionalDocuments'] = additionalDocuments;
+      }
+
+      final response = await http.post(
+        _uri('/api/Customers/kyc'),
+        headers: _getHeaders(additionalHeaders: {'Content-Type': 'application/json'}),
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body);
+        return json;
+      } else {
+        throw ApiException('KYC submission failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw ApiException('KYC submission error: $e');
+    }
+  }
+
   // -------------------- Order Creation --------------------
   Future<Map<String, dynamic>> createOrder({
     required double totalAmount,

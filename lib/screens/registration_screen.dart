@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -66,8 +67,8 @@ Country _secondarySelectedCountry = const Country(code: 'JO', dialCode: '962', f
         _isLoading = false;
       });
       
-      // Pre-fill data for status 3 (approved - fill only)
-      if (_statusId == 3) {
+      // Pre-fill data for status 2 (existing data) and status 3 (approved - fill only)
+      if (_statusId == 2 || _statusId == 3) {
         _prefillDataFromLogin();
       }
     } else {
@@ -209,7 +210,86 @@ Country _secondarySelectedCountry = const Country(code: 'JO', dialCode: '962', f
     }
   }
 
-  void _register() {
+  // Helper method to convert File to base64
+  Future<String> _fileToBase64(File file) async {
+    final bytes = await file.readAsBytes();
+    return base64Encode(bytes);
+  }
+
+  // Helper method to convert multiple files to base64
+  Future<List<String>> _filesToBase64(List<File> files) async {
+    final List<String> base64List = [];
+    for (final file in files) {
+      final base64 = await _fileToBase64(file);
+      base64List.add(base64);
+    }
+    return base64List;
+  }
+
+  // Location picker method
+  void _showLocationPicker(BuildContext context) async {
+    final bool isAr = widget.isArabic;
+    final List<String> commonLocations = [
+      'Amman',
+      'Zarqa',
+      'Irbid',
+      'Aqaba',
+      'Salt',
+      'Madaba',
+      'Jerash',
+      'Ajloun',
+      'Karak',
+      'Tafilah',
+      'Ma\'an',
+      'Mafraq',
+    ];
+
+    final String? selected = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              isAr ? 'اختر مكان العمل' : 'Choose Work Location',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView.builder(
+                itemCount: commonLocations.length,
+                itemBuilder: (context, index) {
+                  final location = commonLocations[index];
+                  return ListTile(
+                    leading: const Icon(Icons.location_on),
+                    title: Text(location),
+                    onTap: () => Navigator.of(context).pop(location),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(isAr ? 'إلغاء' : 'Cancel'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (selected != null) {
+      setState(() {
+        _workLocationController.text = selected;
+      });
+    }
+  }
+
+  void _register() async {
     if (_formKey.currentState?.validate() != true) return;
     if (_idImageFile == null) {
       final msg = widget.isArabic ? 'الرجاء رفع/التقاط صورة الهوية/الجواز' : 'Please upload/capture the ID/Passport photo';
@@ -227,25 +307,77 @@ Country _secondarySelectedCountry = const Country(code: 'JO', dialCode: '962', f
       return;
     }
 
-    final registration = Register(
-      fullName: _nameController.text.trim(),
-      residence: _addressController.text.trim(),
-      nationalIdOrPassport: _nationalIdController.text.trim(),
-      secondaryPhone: '+${_secondarySelectedCountry.dialCode}${_secondaryPhoneController.text.trim()}',
-      secondaryOwnerName: _secondaryOwnerNameController.text.trim(),
-      secondaryRelation: _secondaryRelationController.text.trim(),
-      employerName: _employerNameController.text.trim(),
-      employerPhone: _employerPhoneController.text.trim(),
-      workLocation: _workLocationController.text.trim(),
-      idOrPassportPhoto: _idImageFile!,
-      salarySlipPhoto: _salarySlipImageFile!,
-      supportingDocuments: _supportingDocs,
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
     );
-    final isAr = widget.isArabic;
-    final msg = isAr ? 'تم التسجيل بنجاح' : 'Registered successfully';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-    // ignore: avoid_print
-    // print(registration);
+
+    try {
+      // Convert images to base64
+      final nationalIdImageBase64 = await _fileToBase64(_idImageFile!);
+      final salarySlipBase64 = await _fileToBase64(_salarySlipImageFile!);
+      final additionalDocsBase64 = await _filesToBase64(_supportingDocs);
+
+      // Get customer ID from stored data
+      final customerId = int.tryParse(_customerData?['Id']?.toString() ?? '1') ?? 1;
+
+      // Submit KYC data
+      final result = await ApiClient.instance.submitKyc(
+        customerId: customerId,
+        fullName: _nameController.text.trim(),
+        nationalId: _nationalIdController.text.trim(),
+        residenceAddress: _addressController.text.trim(),
+        secondaryPhone: '+${_secondarySelectedCountry.dialCode}${_secondaryPhoneController.text.trim()}',
+        secondaryPhoneName: _secondaryOwnerNameController.text.trim(),
+        secondaryPhoneRelationId: 1, // Default relation ID
+        employerName: _employerNameController.text.trim(),
+        employerPhone: _employerPhoneController.text.trim(),
+        workLocation: _workLocationController.text.trim(),
+        nationalIdImage: nationalIdImageBase64,
+        salarySlip: salarySlipBase64,
+        additionalDocuments: additionalDocsBase64,
+      );
+
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+
+      if (result['success'] == true) {
+        final isAr = widget.isArabic;
+        final msg = isAr ? 'تم التسجيل بنجاح' : 'Registered successfully';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Navigate back to main screen
+        Navigator.of(context).pop();
+      } else {
+        final errorMsg = result['message'] ?? (widget.isArabic ? 'فشل في التسجيل' : 'Registration failed');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+      
+      final errorMsg = widget.isArabic ? 'خطأ في التسجيل: $e' : 'Registration error: $e';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMsg),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -707,6 +839,7 @@ Country _secondarySelectedCountry = const Country(code: 'JO', dialCode: '962', f
                       _RoundedField(
                         child: TextFormField(
                           controller: _nameController,
+                          enabled: _statusId != 3, // Disable for status 3
                           textAlign: isAr ? TextAlign.right : TextAlign.left,
                           decoration: InputDecoration(hintText: nameHint, border: InputBorder.none),
                           validator: (v) => (v == null || v.trim().isEmpty) ? (isAr ? 'أدخل الاسم' : 'Enter your name') : null,
@@ -787,95 +920,207 @@ Country _secondarySelectedCountry = const Country(code: 'JO', dialCode: '962', f
                         ),
                       ),
                       const SizedBox(height: 14),
-                      if (_isSecondaryPhoneVerified) _RoundedField(
-                        child: TextFormField(
-                          controller: _secondaryOwnerNameController,
-                          textAlign: isAr ? TextAlign.right : TextAlign.left,
-                          decoration: InputDecoration(hintText: secondaryOwnerNameHint, border: InputBorder.none),
-                          validator: (v) => (v == null || v.trim().isEmpty) ? (isAr ? 'أدخل اسم صاحب الرقم' : 'Enter secondary owner name') : null,
-                          onChanged: (_) => setState(() {}),
-                        ),
-                      ),
-                      if (_isSecondaryPhoneVerified) const SizedBox(height: 14),
-                      if (_isSecondaryPhoneVerified) _RoundedField(
-                        child: TextFormField(
-                          controller: _secondaryRelationController,
-                          textAlign: isAr ? TextAlign.right : TextAlign.left,
-                          decoration: InputDecoration(hintText: secondaryRelationHint, border: InputBorder.none),
-                          validator: (v) => (v == null || v.trim().isEmpty) ? (isAr ? 'أدخل صلة القرابة' : 'Enter relation') : null,
-                          onChanged: (_) => setState(() {}),
-                        ),
-                      ),
-                      if (_isSecondaryPhoneVerified) const SizedBox(height: 14),
-                      if (_isSecondaryPhoneVerified) _RoundedField(
-                        child: TextFormField(
-                          controller: _employerNameController,
-                          textAlign: isAr ? TextAlign.right : TextAlign.left,
-                          decoration: InputDecoration(hintText: employerNameHint, border: InputBorder.none),
-                          validator: (v) => (v == null || v.trim().isEmpty) ? (isAr ? 'أدخل اسم جهة العمل' : 'Enter employer name') : null,
-                          onChanged: (_) => setState(() {}),
-                        ),
-                      ),
-                      if (_isSecondaryPhoneVerified) const SizedBox(height: 14),
-                      if (_isSecondaryPhoneVerified) _RoundedField(
-                        child: TextFormField(
-                          controller: _employerPhoneController,
-                          keyboardType: TextInputType.phone,
-                          textAlign: isAr ? TextAlign.right : TextAlign.left,
-                          decoration: InputDecoration(hintText: employerPhoneHint, border: InputBorder.none),
-                          validator: (v) => (v == null || v.trim().isEmpty) ? (isAr ? 'أدخل هاتف جهة العمل' : 'Enter employer phone') : null,
-                          onChanged: (_) => setState(() {}),
-                        ),
-                      ),
-                      if (_isSecondaryPhoneVerified) const SizedBox(height: 14),
-                      if (_isSecondaryPhoneVerified) _RoundedField(
-                        child: TextFormField(
-                          controller: _workLocationController,
-                          textAlign: isAr ? TextAlign.right : TextAlign.left,
-                          decoration: InputDecoration(hintText: workLocationHint, border: InputBorder.none),
-                          validator: (v) => (v == null || v.trim().isEmpty) ? (isAr ? 'أدخل مكان العمل' : 'Enter work location') : null,
-                          onChanged: (_) => setState(() {}),
-                        ),
-                      ),
-                      if (_isSecondaryPhoneVerified) const SizedBox(height: 16),
-                      if (_isSecondaryPhoneVerified) _ImageCaptureTile(
-                        label: idPhoto,
-                        file: _idImageFile,
-                        onCapture: _captureIdImage,
-                      ),
-                      if (_isSecondaryPhoneVerified) const SizedBox(height: 12),
-                      // Removed profile photo field
-                      if (_isSecondaryPhoneVerified) const SizedBox(height: 12),
-                      if (_isSecondaryPhoneVerified) _ImageCaptureTile(
-                        label: salarySlip,
-                        file: _salarySlipImageFile,
-                        onCapture: _captureSalarySlip,
-                      ),
-                      if (_isSecondaryPhoneVerified) const SizedBox(height: 12),
-                      if (_isSecondaryPhoneVerified) _SupportingDocsSection(
-                        label: otherDocs,
-                        files: _supportingDocs,
-                        onAdd: _pickSupportingDocs,
-                      ),
-                      if (_isSecondaryPhoneVerified) const SizedBox(height: 22),
-                      if (_isSecondaryPhoneVerified) SizedBox(
-                        width: 220,
-                        child: ElevatedButton(
-                          onPressed: _isAllFilledAndReadyToSubmit ? _register : null,
-                          style: ButtonStyle(
-                            backgroundColor: MaterialStateProperty.resolveWith<Color>((states) {
-                              return const Color(0xFF2196F3);
-                            }),
-                            foregroundColor: MaterialStateProperty.resolveWith<Color>((states) {
-                              return Colors.white;
-                            }),
-                            padding: MaterialStateProperty.all(const EdgeInsets.symmetric(vertical: 12)),
-                            shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
-                            elevation: MaterialStateProperty.all(0),
+                      // Show all fields for StatusId 1 & 2
+                      if (_statusId == 1 || _statusId == 2) ...[
+                        _RoundedField(
+                          child: TextFormField(
+                            controller: _secondaryOwnerNameController,
+                            textAlign: isAr ? TextAlign.right : TextAlign.left,
+                            decoration: InputDecoration(hintText: secondaryOwnerNameHint, border: InputBorder.none),
+                            validator: (v) => (v == null || v.trim().isEmpty) ? (isAr ? 'أدخل اسم صاحب الرقم' : 'Enter secondary owner name') : null,
+                            onChanged: (_) => setState(() {}),
                           ),
-                          child: Text(registerText),
                         ),
-                      ),
+                        const SizedBox(height: 14),
+                        _RoundedField(
+                          child: TextFormField(
+                            controller: _secondaryRelationController,
+                            textAlign: isAr ? TextAlign.right : TextAlign.left,
+                            decoration: InputDecoration(hintText: secondaryRelationHint, border: InputBorder.none),
+                            validator: (v) => (v == null || v.trim().isEmpty) ? (isAr ? 'أدخل صلة القرابة' : 'Enter relation') : null,
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        _RoundedField(
+                          child: TextFormField(
+                            controller: _employerNameController,
+                            textAlign: isAr ? TextAlign.right : TextAlign.left,
+                            decoration: InputDecoration(hintText: employerNameHint, border: InputBorder.none),
+                            validator: (v) => (v == null || v.trim().isEmpty) ? (isAr ? 'أدخل اسم جهة العمل' : 'Enter employer name') : null,
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        _RoundedField(
+                          child: TextFormField(
+                            controller: _employerPhoneController,
+                            keyboardType: TextInputType.phone,
+                            textAlign: isAr ? TextAlign.right : TextAlign.left,
+                            decoration: InputDecoration(hintText: employerPhoneHint, border: InputBorder.none),
+                            validator: (v) => (v == null || v.trim().isEmpty) ? (isAr ? 'أدخل هاتف جهة العمل' : 'Enter employer phone') : null,
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        _RoundedField(
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _workLocationController,
+                                  textAlign: isAr ? TextAlign.right : TextAlign.left,
+                                  decoration: InputDecoration(hintText: workLocationHint, border: InputBorder.none),
+                                  validator: (v) => (v == null || v.trim().isEmpty) ? (isAr ? 'أدخل مكان العمل' : 'Enter work location') : null,
+                                  onChanged: (_) => setState(() {}),
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () => _showLocationPicker(context),
+                                icon: const Icon(Icons.location_on, color: Color(0xFF2196F3)),
+                                tooltip: isAr ? 'اختر الموقع' : 'Pick Location',
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _ImageCaptureTile(
+                          label: idPhoto,
+                          file: _idImageFile,
+                          onCapture: _captureIdImage,
+                        ),
+                        const SizedBox(height: 12),
+                        _ImageCaptureTile(
+                          label: salarySlip,
+                          file: _salarySlipImageFile,
+                          onCapture: _captureSalarySlip,
+                        ),
+                        const SizedBox(height: 12),
+                        _SupportingDocsSection(
+                          label: otherDocs,
+                          files: _supportingDocs,
+                          onAdd: _pickSupportingDocs,
+                        ),
+                        const SizedBox(height: 22),
+                        SizedBox(
+                          width: 220,
+                          child: ElevatedButton(
+                            onPressed: _isAllFilledAndReadyToSubmit ? _register : null,
+                            style: ButtonStyle(
+                              backgroundColor: MaterialStateProperty.resolveWith<Color>((states) {
+                                return const Color(0xFF2196F3);
+                              }),
+                              foregroundColor: MaterialStateProperty.resolveWith<Color>((states) {
+                                return Colors.white;
+                              }),
+                              padding: MaterialStateProperty.all(const EdgeInsets.symmetric(vertical: 12)),
+                              shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
+                              elevation: MaterialStateProperty.all(0),
+                            ),
+                            child: Text(registerText),
+                          ),
+                        ),
+                      ] else if (_isSecondaryPhoneVerified) ...[
+                        // Show fields only after secondary phone verification for other statuses
+                        _RoundedField(
+                          child: TextFormField(
+                            controller: _secondaryOwnerNameController,
+                            textAlign: isAr ? TextAlign.right : TextAlign.left,
+                            decoration: InputDecoration(hintText: secondaryOwnerNameHint, border: InputBorder.none),
+                            validator: (v) => (v == null || v.trim().isEmpty) ? (isAr ? 'أدخل اسم صاحب الرقم' : 'Enter secondary owner name') : null,
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        _RoundedField(
+                          child: TextFormField(
+                            controller: _secondaryRelationController,
+                            textAlign: isAr ? TextAlign.right : TextAlign.left,
+                            decoration: InputDecoration(hintText: secondaryRelationHint, border: InputBorder.none),
+                            validator: (v) => (v == null || v.trim().isEmpty) ? (isAr ? 'أدخل صلة القرابة' : 'Enter relation') : null,
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        _RoundedField(
+                          child: TextFormField(
+                            controller: _employerNameController,
+                            textAlign: isAr ? TextAlign.right : TextAlign.left,
+                            decoration: InputDecoration(hintText: employerNameHint, border: InputBorder.none),
+                            validator: (v) => (v == null || v.trim().isEmpty) ? (isAr ? 'أدخل اسم جهة العمل' : 'Enter employer name') : null,
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        _RoundedField(
+                          child: TextFormField(
+                            controller: _employerPhoneController,
+                            keyboardType: TextInputType.phone,
+                            textAlign: isAr ? TextAlign.right : TextAlign.left,
+                            decoration: InputDecoration(hintText: employerPhoneHint, border: InputBorder.none),
+                            validator: (v) => (v == null || v.trim().isEmpty) ? (isAr ? 'أدخل هاتف جهة العمل' : 'Enter employer phone') : null,
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        _RoundedField(
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _workLocationController,
+                                  textAlign: isAr ? TextAlign.right : TextAlign.left,
+                                  decoration: InputDecoration(hintText: workLocationHint, border: InputBorder.none),
+                                  validator: (v) => (v == null || v.trim().isEmpty) ? (isAr ? 'أدخل مكان العمل' : 'Enter work location') : null,
+                                  onChanged: (_) => setState(() {}),
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () => _showLocationPicker(context),
+                                icon: const Icon(Icons.location_on, color: Color(0xFF2196F3)),
+                                tooltip: isAr ? 'اختر الموقع' : 'Pick Location',
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _ImageCaptureTile(
+                          label: idPhoto,
+                          file: _idImageFile,
+                          onCapture: _captureIdImage,
+                        ),
+                        const SizedBox(height: 12),
+                        _ImageCaptureTile(
+                          label: salarySlip,
+                          file: _salarySlipImageFile,
+                          onCapture: _captureSalarySlip,
+                        ),
+                        const SizedBox(height: 12),
+                        _SupportingDocsSection(
+                          label: otherDocs,
+                          files: _supportingDocs,
+                          onAdd: _pickSupportingDocs,
+                        ),
+                        const SizedBox(height: 22),
+                        SizedBox(
+                          width: 220,
+                          child: ElevatedButton(
+                            onPressed: _isAllFilledAndReadyToSubmit ? _register : null,
+                            style: ButtonStyle(
+                              backgroundColor: MaterialStateProperty.resolveWith<Color>((states) {
+                                return const Color(0xFF2196F3);
+                              }),
+                              foregroundColor: MaterialStateProperty.resolveWith<Color>((states) {
+                                return Colors.white;
+                              }),
+                              padding: MaterialStateProperty.all(const EdgeInsets.symmetric(vertical: 12)),
+                              shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
+                              elevation: MaterialStateProperty.all(0),
+                            ),
+                            child: Text(registerText),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 16),
                     ],
                   ),
